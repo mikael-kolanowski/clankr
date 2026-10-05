@@ -6,7 +6,7 @@ import { TOOLS } from "./tool-defs.ts";
 import { readdir } from "node:fs/promises";
 import { applyPatch } from "diff";
 
-function banner() {
+function banner(host: string, modelSlug: string) {
     console.log(" ┌───────┐ ┌───┐     ┌───────┐ ┌───────┐ ┌───┐ ┌─┐ ┌───────┐");
     console.log("═│∙  ╒═╕∙│═│∙  │═════│∙  ╒═╕∙│═│∙  ╒═╕·│═│∙  │═│∙│═│∙  ╒═╕∙│");
     console.log(" │   │▓└─┘░│   │█▓▓▓ │   └─┘ │ │   │▓│ │ │   └─┘┌┘ │   └─┘┌┘");
@@ -15,6 +15,22 @@ function banner() {
     console.log("═│∙  ╘═╛∙│═│∙     ∙│═│∙  │═│∙│═│∙  │═│∙│═│∙  │═│∙│═│∙  │═│∙│");
     console.log(" ╘═══════╛ ╘═══════╛ ╘═══╛ ╘═╛ ╘═══╛ ╘═╛ ╘═══╛ ╘═╛ ╘═══╛ ╘═╛");
     console.log("\n");
+    console.log(`${modelSlug} via ${host}`);
+    console.log("\n");
+}
+
+interface Config {
+    model: string;
+    baseURL: string;
+}
+
+async function loadConfig(): Promise<Config> {
+    const configFile = Bun.file("./config.json");
+    if (!(await configFile.exists())) {
+        throw new Error("Could not load the config!");
+    }
+
+    return await configFile.json();
 }
 
 type ToolInvocationResult =
@@ -128,10 +144,9 @@ async function executeToolCall(
 }
 
 async function main() {
-    banner();
+    const config = await loadConfig();
+    banner(config.baseURL, config.model);
     const apiKey = process.env.OPENROUTER_API_KEY;
-    const baseURL =
-        process.env.OPENROUTER_BASE_URL ?? "https://openrouter.ai/api/v1";
 
     if (!apiKey) {
         throw new Error("OPENROUTER_API_KEY is not set");
@@ -139,7 +154,7 @@ async function main() {
 
     const client = new OpenAI({
         apiKey: apiKey,
-        baseURL: baseURL,
+        baseURL: config.baseURL,
     });
 
     let messages: OpenAI.Chat.Completions.ChatCompletionMessageParam[] = [];
@@ -160,7 +175,7 @@ async function main() {
 
         while (true) {
             const response = await client.chat.completions.create({
-                model: "z-ai/glm-5.3-flash",
+                model: config.model,
                 messages,
                 tools: TOOLS,
             });
@@ -192,10 +207,10 @@ async function main() {
     }
 
     const logFileName =
-        "transcript-"
-         + new Date().toISOString().slice(0, 19).replace(/[:]/g, "-") +
-         + `-${process.pid}`
-         + ".json";
+        "transcript-" +
+        new Date().toISOString().slice(0, 19).replace(/[:]/g, "-") +
+        +`-${process.pid}` +
+        ".json";
     await Bun.write(logFileName, JSON.stringify(messages));
 
     rl.close();

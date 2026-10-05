@@ -1,0 +1,4 @@
+{
+    "baseURL": "https://openrouter.ai/api/v1",
+    "model": "z-ai/glm-5.3-flash"
+}
