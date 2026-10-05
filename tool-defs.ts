@@ -54,8 +54,33 @@ export const listFilesToolSpec = {
 	}
 } satisfies ChatCompletionTool;
 
+export const editToolSpec = {
+	type: "function",
+	function: {
+		name: "Edit",
+		description: "Apply a patch delta to a file",
+		parameters: {
+			type: "object",
+			properties: {
+				path: {
+					type: "string",
+					description: "The file to edit",
+				},
+				delta: {
+					type: "string",
+					description: 
+						"Unified diff containing only the changes to apply to the file. " +
+      					"Do not include unchanged file contents, Markdown fences, or explanations."
+				}
+			},
+			required: ["path", "delta"]
+		}
+	}
+} satisfies ChatCompletionTool;
+
 export const TOOLS = [
   weatherToolSpec,
   readToolSpec,
   listFilesToolSpec,
+  editToolSpec,
 ];

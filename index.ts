@@ -6,6 +6,20 @@ import type {
 import { TOOLS } from "./tool-defs.ts";
 
 import { readdir } from "node:fs/promises";
+import { applyPatch } from "diff";
+
+type ToolInvocationResult =
+	| { ok: true, result: string }
+	| { ok: false, error: string };
+
+function toolSuccess(result?: string): ToolInvocationResult {
+	const res = result ? result : "";
+	return { ok: true, result: res };
+}
+
+function toolFailure(error: string): ToolInvocationResult {
+	return { ok: false, error: error };
+}
 
 function formatToolCall(tool_call: ChatCompletionMessageToolCall) {
   if (tool_call.type !== "function") {
@@ -32,14 +46,38 @@ async function executeReadTool(args: { path: string }) {
 		return await file.text();
 	} catch (error) {
 		let message = "Unknown error";
-		if (error instanceof Error) message = error.message
+		if (error instanceof Error) message = error.message;
 		return message;
 	}
 }
 
 async function executeListFilesTool(args: { path?: string }) {
-	const path = args.path ?? "."
-	return (await readdir(path)).join("\n");
+	const path = args.path ?? ".";
+	try {
+		return toolSuccess((await readdir(path)).join("\n"));
+	} catch (error) {
+		let message = "Unknown error";
+		if (error instanceof Error) message = error.message;
+		return toolFailure(message);
+	}
+}
+
+async function executeEditToolCall(args: { path: string, delta: string }) {
+	const { path, delta } = args;
+
+	console.log(`Applying patch ${delta} to ${path}`)
+	const file = Bun.file(path);
+	const exists = await file.exists();
+
+	const source = exists ? await file.text() : "";
+	const result = applyPatch(source, delta);
+
+	if (result === false) {
+		return JSON.stringify(toolFailure("Patch could not be applied"));
+	}
+	
+	await Bun.write(path, result);
+	return JSON.stringify(toolSuccess());
 }
 
 async function executeToolCall(tool_call: ChatCompletionMessageToolCall) {
@@ -56,6 +94,8 @@ async function executeToolCall(tool_call: ChatCompletionMessageToolCall) {
 		return executeReadTool(args);
 	case "ListFiles":
 		return executeListFilesTool(args);
+	case "Edit":
+		return executeEditToolCall(args);
     default:
       throw new Error(`Unknown tool: ${tool_call.function.name}`);
   }
@@ -118,7 +158,12 @@ async function main() {
         messages.push({
           role: "tool",
           tool_call_id: toolCall.id,
-          content: result,
+          content:
+            typeof result === "string"
+              ? result
+              : result.ok
+                ? result.result
+                : JSON.stringify(result),
         });
       }
     }
