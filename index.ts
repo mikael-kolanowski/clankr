@@ -29,6 +29,10 @@ function toolFailure(error: string): ToolInvocationResult {
     return { ok: false, error: error };
 }
 
+function errorMessage(error: unknown): string {
+    return error instanceof Error ? error.message : String(error);
+}
+
 function formatToolCall(tool_call: ChatCompletionMessageToolCall) {
     if (tool_call.type !== "function") {
         throw new Error("Unsupported tool type!");
@@ -36,26 +40,31 @@ function formatToolCall(tool_call: ChatCompletionMessageToolCall) {
     return `${tool_call.function.name}(${tool_call.function.arguments})`;
 }
 
-async function executeWeatherTool(args: { location: string }) {
-    const response = await fetch(
-        `https://wttr.in/${encodeURIComponent(args.location)}?format=3`,
-    );
+async function executeWeatherTool(args: {
+    location: string;
+}): Promise<ToolInvocationResult> {
+    try {
+        const response = await fetch(
+            `https://wttr.in/${encodeURIComponent(args.location)}?format=3`,
+        );
 
-    if (!response.ok) {
-        throw new Error(`wttr.in returned ${response.status}`);
+        if (!response.ok) {
+            return toolFailure(`wttr.in returned ${response.status}`);
+        }
+
+        return toolSuccess(await response.text());
+    } catch (error) {
+        return toolFailure(errorMessage(error));
     }
-
-    return await response.text();
 }
 
-async function executeReadTool(args: { path: string }) {
-    const file = Bun.file(args.path);
+async function executeReadTool(args: {
+    path: string;
+}): Promise<ToolInvocationResult> {
     try {
-        return await file.text();
+        return toolSuccess(await Bun.file(args.path).text());
     } catch (error) {
-        let message = "Unknown error";
-        if (error instanceof Error) message = error.message;
-        return message;
+        return toolFailure(errorMessage(error));
     }
 }
 
@@ -70,7 +79,10 @@ async function executeListFilesTool(args: { path?: string }) {
     }
 }
 
-async function executeEditToolCall(args: { path: string; delta: string }) {
+async function executeEditToolCall(args: {
+    path: string;
+    delta: string;
+}): Promise<ToolInvocationResult> {
     const { path, delta } = args;
 
     console.log(`Applying patch ${delta} to ${path}`);
@@ -81,31 +93,37 @@ async function executeEditToolCall(args: { path: string; delta: string }) {
     const result = applyPatch(source, delta);
 
     if (result === false) {
-        return JSON.stringify(toolFailure("Patch could not be applied"));
+        return toolFailure("Patch could not be applied");
     }
 
     await Bun.write(path, result);
-    return JSON.stringify(toolSuccess());
+    return toolSuccess("Patch applied");
 }
 
-async function executeToolCall(tool_call: ChatCompletionMessageToolCall) {
+async function executeToolCall(
+    tool_call: ChatCompletionMessageToolCall,
+): Promise<ToolInvocationResult> {
     if (tool_call.type !== "function") {
         throw new Error("Unsupported tool type!");
     }
     const args = JSON.parse(tool_call.function.arguments);
     console.log(`   ${formatToolCall(tool_call)}`);
 
-    switch (tool_call.function.name) {
-        case "Weather":
-            return executeWeatherTool(args);
-        case "Read":
-            return executeReadTool(args);
-        case "ListFiles":
-            return executeListFilesTool(args);
-        case "Edit":
-            return executeEditToolCall(args);
-        default:
-            throw new Error(`Unknown tool: ${tool_call.function.name}`);
+    try {
+        switch (tool_call.function.name) {
+            case "Weather":
+                return await executeWeatherTool(args);
+            case "Read":
+                return await executeReadTool(args);
+            case "ListFiles":
+                return await executeListFilesTool(args);
+            case "Edit":
+                return await executeEditToolCall(args);
+            default:
+                throw new Error(`Unknown tool: ${tool_call.function.name}`);
+        }
+    } catch (error) {
+        return toolFailure(errorMessage(error));
     }
 }
 
@@ -167,16 +185,18 @@ async function main() {
                 messages.push({
                     role: "tool",
                     tool_call_id: toolCall.id,
-                    content:
-                        typeof result === "string"
-                            ? result
-                            : result.ok
-                              ? result.result
-                              : JSON.stringify(result),
+                    content: result.ok ? result.result : JSON.stringify(result),
                 });
             }
         }
     }
+
+    const logFileName =
+        "transcript-"
+         + new Date().toISOString().slice(0, 19).replace(/[:]/g, "-") +
+         + `-${process.pid}`
+         + ".json";
+    await Bun.write(logFileName, JSON.stringify(messages));
 
     rl.close();
 }
