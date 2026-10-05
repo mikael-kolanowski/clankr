@@ -9,10 +9,11 @@
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
-	"dependencies": {
-		"openai": "^6.16.0"
-	},
-	"devDependencies": {
-		"@types/bun": "latest"
-	}
+  "dependencies": {
+    "openai": "^6.16.0"
+  },
+  "devDependencies": {
+    "@types/bun": "latest",
+    "typescript": "^7.0.2"
+  }
 }

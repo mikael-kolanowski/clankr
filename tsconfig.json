@@ -1,5 +1,14 @@
 {
-  "compilerOptions": {
-    "types": ["bun-types", "node"]
-  }
+    "compilerOptions": {
+		"target": "esnext",
+		"module": "esnext",
+		"moduleResolution": "bundler",
+		"moduleDetection": "force",
+		"allowImportingTsExtensions": true,
+		"noEmit": true,
+		"skipLibCheck": true,
+		"strict": true,
+		"noImplicitReturns": true,
+		"types": ["bun-types", "node"]
+	}
 }

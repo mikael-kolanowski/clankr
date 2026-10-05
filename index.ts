@@ -1,64 +1,11 @@
 import OpenAI from "openai";
 import type {
-  ChatCompletionTool,
   ChatCompletionMessageToolCall,
 } from "openai/resources";
 
+import { TOOLS } from "./tool-defs.ts";
+
 import { readdir } from "node:fs/promises";
-
-const weatherToolSpec = {
-  type: "function",
-  function: {
-    name: "Weather",
-    description: "Get the weather report for a location",
-    parameters: {
-      type: "object",
-      properties: {
-        location: {
-          type: "string",
-          description: "The location to get the weather for",
-        },
-      },
-      required: ["location"],
-    },
-  },
-} satisfies ChatCompletionTool;
-
-const readToolSpec = {
-	type: "function",
-	function: {
-		name: "Read",
-		description: "Return the contents of the file at the provided path",
-		parameters: {
-			type: "object",
-			properties: {
-				path: {
-					type: "string",
-					description: "The location of the file to read"
-				}
-			},
-			required: ["path"]
-		}
-	}
-} satisfies ChatCompletionTool;
-
-const listFilesToolSpec = {
-	type: "function",
-	function: {
-		name: "ListFiles",
-		description: "Return the list of files at the given path",
-		parameters: {
-			type: "object",
-			properties: {
-				path: {
-					type: "string",
-					description: "The directory whose files to list, or the current directory if ommited"
-				}
-			},
-			required: ["path"]
-		}
-	}
-} satisfies ChatCompletionTool;
 
 function formatToolCall(tool_call: ChatCompletionMessageToolCall) {
   if (tool_call.type !== "function") {
@@ -148,7 +95,7 @@ async function main() {
       const response = await client.chat.completions.create({
         model: "z-ai/glm-5.3-flash",
         messages,
-        tools: [weatherToolSpec, readToolSpec, listFilesToolSpec],
+        tools: TOOLS,
       });
 
       const message = response.choices[0]?.message;
