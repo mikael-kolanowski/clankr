@@ -1,20 +1,23 @@
 {
-  "name": "agent",
-  "version": "1.0.0",
-  "description": "A tiny LLM agnet",
-  "license": "ISC",
-  "author": "",
-  "type": "commonjs",
-  "main": "index.js",
-  "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
-  },
-  "dependencies": {
-    "diff": "^9.0.0",
-    "openai": "^6.16.0"
-  },
-  "devDependencies": {
-    "@types/bun": "latest",
-    "typescript": "^7.0.2"
-  }
+    "name": "agent",
+    "version": "1.0.0",
+    "description": "A tiny LLM agnet",
+    "license": "ISC",
+    "author": "",
+    "type": "commonjs",
+    "main": "index.js",
+    "scripts": {
+        "test": "echo \"Error: no test specified\" && exit 1",
+        "format": "prettier --write .",
+        "format:check": "prettier --check ."
+    },
+    "dependencies": {
+        "diff": "^9.0.0",
+        "openai": "^6.16.0"
+    },
+    "devDependencies": {
+        "@types/bun": "latest",
+        "prettier": "^3.9.9",
+        "typescript": "^7.0.2"
+    }
 }
