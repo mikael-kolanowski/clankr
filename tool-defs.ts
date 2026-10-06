@@ -46,8 +46,7 @@ export const listFilesToolSpec = {
             properties: {
                 path: {
                     type: "string",
-                    description:
-                        "The directory whose files to list, or the current directory if ommited",
+                    description: "The directory whose files to list, or the current directory if ommited",
                 },
             },
             required: ["path"],
@@ -69,9 +68,8 @@ export const editToolSpec = {
                 },
                 delta: {
                     type: "string",
-                    description:
-                        "Unified diff containing only the changes to apply to the file. " +
-                        "Do not include unchanged file contents, Markdown fences, or explanations.",
+                    description: "Unified diff containing only the changes to apply to the file. "
+                        + "Do not include unchanged file contents, Markdown fences, or explanations.",
                 },
             },
             required: ["path", "delta"],

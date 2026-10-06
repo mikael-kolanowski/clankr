@@ -1,0 +1,18 @@
+{
+    "lineWidth": 120,
+    "indentWidth": 4,
+    "typescript": {
+        "quoteStyle": "alwaysDouble",
+        "semiColons": "always",
+        "arrowFunction.useParentheses": "force",
+        "trailingCommas": "onlyMultiLine",
+        "binaryExpression.operatorPosition": "nextLine",
+        "importDeclaration.sortNamedImports": "caseInsensitive",
+        "typeLiteral.separatorKind": "comma",
+        "unionAndIntersectionType.preferSingleLine": true
+    },
+    "json": {},
+    "markdown": {},
+    "excludes": ["**/node_modules", "**/*-lock.json", "bun.lock", "transcript-*.json"],
+    "plugins": ["npm:@dprint/typescript@0.96.1", "npm:@dprint/json@0.25.2", "npm:@dprint/markdown@0.26.0"]
+}

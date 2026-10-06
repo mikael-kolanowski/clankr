@@ -1,15 +1,18 @@
 {
-    "name": "agent",
+    "name": "clankr",
     "version": "1.0.0",
     "description": "A tiny LLM agnet",
     "license": "ISC",
-    "author": "",
-    "type": "commonjs",
-    "main": "index.js",
+    "author": "Mikael Kolanowski",
+    "type": "module",
+    "main": "index.ts",
+    "bin": {
+        "clankr": "./index.ts"
+    },
     "scripts": {
         "test": "echo \"Error: no test specified\" && exit 1",
-        "format": "prettier --write .",
-        "format:check": "prettier --check ."
+        "format": "dprint fmt",
+        "format:check": "dprint check"
     },
     "dependencies": {
         "diff": "^9.0.0",
@@ -17,7 +20,7 @@
     },
     "devDependencies": {
         "@types/bun": "latest",
-        "prettier": "^3.9.9",
+        "dprint": "^0.60.1",
         "typescript": "^7.0.2"
     }
 }

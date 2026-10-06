@@ -1,10 +1,11 @@
+#!/usr/bin/env bun
 import OpenAI from "openai";
 import type { ChatCompletionMessageToolCall } from "openai/resources";
 
 import { TOOLS } from "./tool-defs.ts";
 
-import { readdir } from "node:fs/promises";
 import { applyPatch } from "diff";
+import { readdir } from "node:fs/promises";
 
 function banner(host: string, modelSlug: string) {
     console.log(" ┌───────┐ ┌───┐     ┌───────┐ ┌───────┐ ┌───┐ ┌─┐ ┌───────┐");
@@ -33,8 +34,7 @@ async function loadConfig(): Promise<Config> {
     return await configFile.json();
 }
 
-type ToolInvocationResult =
-    { ok: true; result: string } | { ok: false; error: string };
+type ToolInvocationResult = { ok: true, result: string } | { ok: false, error: string };
 
 function toolSuccess(result?: string): ToolInvocationResult {
     const res = result ? result : "";
@@ -57,7 +57,7 @@ function formatToolCall(tool_call: ChatCompletionMessageToolCall) {
 }
 
 async function executeWeatherTool(args: {
-    location: string;
+    location: string,
 }): Promise<ToolInvocationResult> {
     try {
         const response = await fetch(
@@ -75,7 +75,7 @@ async function executeWeatherTool(args: {
 }
 
 async function executeReadTool(args: {
-    path: string;
+    path: string,
 }): Promise<ToolInvocationResult> {
     try {
         return toolSuccess(await Bun.file(args.path).text());
@@ -96,8 +96,8 @@ async function executeListFilesTool(args: { path?: string }) {
 }
 
 async function executeEditToolCall(args: {
-    path: string;
-    delta: string;
+    path: string,
+    delta: string,
 }): Promise<ToolInvocationResult> {
     const { path, delta } = args;
 
@@ -206,11 +206,10 @@ async function main() {
         }
     }
 
-    const logFileName =
-        "transcript-" +
-        new Date().toISOString().slice(0, 19).replace(/[:]/g, "-") +
-        +`-${process.pid}` +
-        ".json";
+    const logFileName = "transcript-"
+        + new Date().toISOString().slice(0, 19).replace(/[:]/g, "-")
+        + +`-${process.pid}`
+        + ".json";
     await Bun.write(logFileName, JSON.stringify(messages));
 
     rl.close();
