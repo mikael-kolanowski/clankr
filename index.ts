@@ -26,7 +26,7 @@ interface Config {
 }
 
 async function loadConfig(): Promise<Config> {
-    const configFile = Bun.file("./config.json");
+    const configFile = Bun.file(new URL("./config.json", import.meta.url));
     if (!(await configFile.exists())) {
         throw new Error("Could not load the config!");
     }
