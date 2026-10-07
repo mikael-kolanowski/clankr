@@ -206,7 +206,9 @@ async function main() {
         }
     }
 
-    const logFileName = "transcript-"
+    const transcriptsDir = new URL("./transcripts/", import.meta.url);
+    const logFileName = transcriptsDir
+        + "transcript-"
         + new Date().toISOString().slice(0, 19).replace(/[:]/g, "-")
         + +`-${process.pid}`
         + ".json";
