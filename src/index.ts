@@ -26,7 +26,7 @@ interface Config {
 }
 
 async function loadConfig(): Promise<Config> {
-    const configFile = Bun.file(new URL("./config.json", import.meta.url));
+    const configFile = Bun.file("./config.json");
     if (!(await configFile.exists())) {
         throw new Error("Could not load the config!");
     }
@@ -143,6 +143,61 @@ async function executeToolCall(
     }
 }
 
+interface Clanker {
+    config: Config;
+    client: OpenAI;
+    messages: OpenAI.Chat.Completions.ChatCompletionMessageParam[];
+}
+
+function newClanker(config: Config, apiKey: string): Clanker {
+    const client = new OpenAI({
+        apiKey: apiKey,
+        baseURL: config.baseURL,
+    });
+
+    return {
+        config,
+        client: client,
+        messages: [],
+    };
+}
+
+async function handleAgentTurn(clanker: Clanker, prompt: string) {
+    clanker.messages.push({ role: "user", content: prompt });
+
+    while (true) {
+        const response = await clanker.client.chat.completions.create({
+            model: clanker.config.model,
+            messages: clanker.messages,
+            tools: TOOLS,
+        });
+
+        const message = response.choices[0]?.message;
+        if (!message) {
+            throw new Error("no message in response");
+        }
+
+        clanker.messages.push(message);
+
+        if (!message.tool_calls?.length) {
+            if (message.content) {
+                console.log("\n" + message.content + "\n");
+            }
+            break;
+        }
+
+        for (const toolCall of message.tool_calls) {
+            const result = await executeToolCall(toolCall);
+
+            clanker.messages.push({
+                role: "tool",
+                tool_call_id: toolCall.id,
+                content: result.ok ? result.result : JSON.stringify(result),
+            });
+        }
+    }
+}
+
 async function main() {
     const config = await loadConfig();
     banner(config.baseURL, config.model);
@@ -152,13 +207,6 @@ async function main() {
         throw new Error("OPENROUTER_API_KEY is not set");
     }
 
-    const client = new OpenAI({
-        apiKey: apiKey,
-        baseURL: config.baseURL,
-    });
-
-    let messages: OpenAI.Chat.Completions.ChatCompletionMessageParam[] = [];
-
     const readline = require("node:readline/promises");
 
     const rl = readline.createInterface({
@@ -166,53 +214,23 @@ async function main() {
         output: process.stdout,
     });
 
+    let clanker = newClanker(config, apiKey);
+
     while (true) {
-        const line = await rl.question("> ");
+        const prompt = await rl.question("> ");
 
-        if (line === "") break;
+        if (prompt === "") break;
 
-        messages.push({ role: "user", content: line });
-
-        while (true) {
-            const response = await client.chat.completions.create({
-                model: config.model,
-                messages,
-                tools: TOOLS,
-            });
-
-            const message = response.choices[0]?.message;
-            if (!message) {
-                throw new Error("no message in response");
-            }
-
-            messages.push(message);
-
-            if (!message.tool_calls?.length) {
-                if (message.content) {
-                    console.log("\n" + message.content + "\n");
-                }
-                break;
-            }
-
-            for (const toolCall of message.tool_calls) {
-                const result = await executeToolCall(toolCall);
-
-                messages.push({
-                    role: "tool",
-                    tool_call_id: toolCall.id,
-                    content: result.ok ? result.result : JSON.stringify(result),
-                });
-            }
-        }
+        await handleAgentTurn(clanker, prompt);
     }
 
     const transcriptsDir = new URL("./transcripts/", import.meta.url);
     const logFileName = transcriptsDir
         + "transcript-"
         + new Date().toISOString().slice(0, 19).replace(/[:]/g, "-")
-        + +`-${process.pid}`
+        + `-${process.pid}`
         + ".json";
-    await Bun.write(logFileName, JSON.stringify(messages));
+    await Bun.write(logFileName, JSON.stringify(clanker.messages));
 
     rl.close();
 }
