@@ -5,7 +5,7 @@
     "license": "ISC",
     "author": "Mikael Kolanowski",
     "type": "module",
-    "main": "index.ts",
+    "main": "./index.ts",
     "bin": {
         "clankr": "./index.ts"
     },

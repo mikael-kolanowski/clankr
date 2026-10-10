@@ -1,37 +1,28 @@
-#!/usr/bin/env bun
+import { applyPatch } from "diff";
+import { readdir } from "node:fs/promises";
 import OpenAI from "openai";
 import type { ChatCompletionMessageToolCall } from "openai/resources";
 
-import { TOOLS } from "./tool-defs.ts";
+import type { Config } from "./config";
+import { TOOLS } from "./tool-defs";
 
-import { applyPatch } from "diff";
-import { readdir } from "node:fs/promises";
-
-function banner(host: string, modelSlug: string) {
-    console.log(" ┌───────┐ ┌───┐     ┌───────┐ ┌───────┐ ┌───┐ ┌─┐ ┌───────┐");
-    console.log("═│∙  ╒═╕∙│═│∙  │═════│∙  ╒═╕∙│═│∙  ╒═╕·│═│∙  │═│∙│═│∙  ╒═╕∙│");
-    console.log(" │   │▓└─┘░│   │█▓▓▓ │   └─┘ │ │   │▓│ │ │   └─┘┌┘ │   └─┘┌┘");
-    console.log("░│   │░┌─┐▒│   │▓┌─┐░│   ╒═╕ │░│   │▒│ │░│   ╒═╕└┐░│   ╒═╕└┐");
-    console.log("▒│   │░│ │▓│   └─┘ │▒│   │░│ │▒│   │░│ │▒│   │░│ │▒│   │░│ │");
-    console.log("═│∙  ╘═╛∙│═│∙     ∙│═│∙  │═│∙│═│∙  │═│∙│═│∙  │═│∙│═│∙  │═│∙│");
-    console.log(" ╘═══════╛ ╘═══════╛ ╘═══╛ ╘═╛ ╘═══╛ ╘═╛ ╘═══╛ ╘═╛ ╘═══╛ ╘═╛");
-    console.log("\n");
-    console.log(`${modelSlug} via ${host}`);
-    console.log("\n");
+interface Clanker {
+    config: Config;
+    client: OpenAI;
+    messages: OpenAI.Chat.Completions.ChatCompletionMessageParam[];
 }
 
-interface Config {
-    model: string;
-    baseURL: string;
-}
+export function newClanker(config: Config, apiKey: string): Clanker {
+    const client = new OpenAI({
+        apiKey: apiKey,
+        baseURL: config.baseURL,
+    });
 
-async function loadConfig(): Promise<Config> {
-    const configFile = Bun.file("./config.json");
-    if (!(await configFile.exists())) {
-        throw new Error("Could not load the config!");
-    }
-
-    return await configFile.json();
+    return {
+        config,
+        client: client,
+        messages: [],
+    };
 }
 
 type ToolInvocationResult = { ok: true, result: string } | { ok: false, error: string };
@@ -143,26 +134,7 @@ async function executeToolCall(
     }
 }
 
-interface Clanker {
-    config: Config;
-    client: OpenAI;
-    messages: OpenAI.Chat.Completions.ChatCompletionMessageParam[];
-}
-
-function newClanker(config: Config, apiKey: string): Clanker {
-    const client = new OpenAI({
-        apiKey: apiKey,
-        baseURL: config.baseURL,
-    });
-
-    return {
-        config,
-        client: client,
-        messages: [],
-    };
-}
-
-async function handleAgentTurn(clanker: Clanker, prompt: string) {
+export async function handleAgentTurn(clanker: Clanker, prompt: string) {
     clanker.messages.push({ role: "user", content: prompt });
 
     while (true) {
@@ -197,42 +169,3 @@ async function handleAgentTurn(clanker: Clanker, prompt: string) {
         }
     }
 }
-
-async function main() {
-    const config = await loadConfig();
-    banner(config.baseURL, config.model);
-    const apiKey = process.env.OPENROUTER_API_KEY;
-
-    if (!apiKey) {
-        throw new Error("OPENROUTER_API_KEY is not set");
-    }
-
-    const readline = require("node:readline/promises");
-
-    const rl = readline.createInterface({
-        input: process.stdin,
-        output: process.stdout,
-    });
-
-    let clanker = newClanker(config, apiKey);
-
-    while (true) {
-        const prompt = await rl.question("> ");
-
-        if (prompt === "") break;
-
-        await handleAgentTurn(clanker, prompt);
-    }
-
-    const transcriptsDir = new URL("./transcripts/", import.meta.url);
-    const logFileName = transcriptsDir
-        + "transcript-"
-        + new Date().toISOString().slice(0, 19).replace(/[:]/g, "-")
-        + `-${process.pid}`
-        + ".json";
-    await Bun.write(logFileName, JSON.stringify(clanker.messages));
-
-    rl.close();
-}
-
-main();
