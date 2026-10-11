@@ -1,4 +1,5 @@
 import { applyPatch } from "diff";
+import { EventEmitter } from "node:events";
 import { readdir } from "node:fs/promises";
 import OpenAI from "openai";
 import type { ChatCompletionMessageToolCall } from "openai/resources";
@@ -6,10 +7,23 @@ import type { ChatCompletionMessageToolCall } from "openai/resources";
 import type { Config } from "./config";
 import { TOOLS } from "./tool-defs";
 
+const eventEmitter = new EventEmitter();
+
+eventEmitter.on("turnStart", (clanker) => {
+    clanker.turnStartedAt = Temporal.Now.instant();
+});
+
+eventEmitter.on("turnEnd", (clanker) => {
+    const now = Temporal.Now.instant();
+    const duration = clanker.turnStartedAt.until(now);
+    console.log(`Worked for ${duration}`);
+});
+
 interface Clanker {
     config: Config;
     client: OpenAI;
     messages: OpenAI.Chat.Completions.ChatCompletionMessageParam[];
+    turnStartedAt: Temporal.Instant;
 }
 
 export function newClanker(config: Config, apiKey: string): Clanker {
@@ -135,6 +149,7 @@ async function executeToolCall(
 }
 
 export async function handleAgentTurn(clanker: Clanker, prompt: string) {
+    eventEmitter.emit("turnStart", clanker);
     clanker.messages.push({ role: "user", content: prompt });
 
     while (true) {
@@ -168,4 +183,5 @@ export async function handleAgentTurn(clanker: Clanker, prompt: string) {
             });
         }
     }
+    eventEmitter.emit("turnEnd", clanker);
 }
