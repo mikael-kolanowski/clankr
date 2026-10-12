@@ -2,7 +2,7 @@ import { applyPatch } from "diff";
 import { EventEmitter } from "node:events";
 import { readdir } from "node:fs/promises";
 import OpenAI from "openai";
-import type { ChatCompletionMessageToolCall } from "openai/resources";
+import type { ChatCompletionMessageParam, ChatCompletionMessageToolCall } from "openai/resources";
 
 import type { Config } from "./config";
 import { TOOLS } from "./tool-defs";
@@ -22,7 +22,7 @@ eventEmitter.on("turnEnd", (clanker) => {
 interface Clanker {
     config: Config;
     client: OpenAI;
-    messages: OpenAI.Chat.Completions.ChatCompletionMessageParam[];
+    messages: ChatCompletionMessageParam[];
     turnStartedAt: Temporal.Instant;
 }
 
@@ -148,34 +148,40 @@ async function executeToolCall(
     }
 }
 
+async function getModelResponse(clanker: Clanker) {
+    const response = await clanker.client.chat.completions.create({
+        model: clanker.config.model,
+        messages: clanker.messages,
+        tools: TOOLS,
+    });
+
+    const message = response.choices[0]?.message;
+    if (!message) {
+        throw new Error("no message in response");
+    }
+
+    // No tool calls -> it's a plain message
+    if (!message.tool_calls?.length) {
+        return { type: "message", message };
+    }
+
+    return { type: "tool", message };
+}
+
 export async function handleAgentTurn(clanker: Clanker, prompt: string) {
     eventEmitter.emit("turnStart", clanker);
     clanker.messages.push({ role: "user", content: prompt });
 
     while (true) {
-        const response = await clanker.client.chat.completions.create({
-            model: clanker.config.model,
-            messages: clanker.messages,
-            tools: TOOLS,
-        });
+        const response = await getModelResponse(clanker);
 
-        const message = response.choices[0]?.message;
-        if (!message) {
-            throw new Error("no message in response");
-        }
-
-        clanker.messages.push(message);
-
-        if (!message.tool_calls?.length) {
-            if (message.content) {
-                console.log("\n" + message.content + "\n");
-            }
+        if (response.type === "message") {
+            console.log("\n" + (response.message.content ?? "oops, no content") + "\n");
             break;
         }
 
-        for (const toolCall of message.tool_calls) {
+        for (const toolCall of response.message.tool_calls ?? []) {
             const result = await executeToolCall(toolCall);
-
             clanker.messages.push({
                 role: "tool",
                 tool_call_id: toolCall.id,
