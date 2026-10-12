@@ -14,16 +14,25 @@ eventEmitter.on("turnStart", (clanker) => {
 });
 
 eventEmitter.on("turnEnd", (clanker) => {
-    const now = Temporal.Now.instant();
-    const duration = clanker.turnStartedAt.until(now);
-    console.log(`Worked for ${duration}`);
+    if (!clanker.turnStartedAt) return;
+    const duration = clanker.turnStartedAt.until(Temporal.Now.instant());
+    console.log(`Worked for ${formatDuration(duration)}`);
 });
+
+function formatDuration(duration: Temporal.Duration): string {
+    const d = duration.round({ largestUnit: "hour", smallestUnit: "second" });
+    const parts: string[] = [];
+    if (d.hours) parts.push(`${d.hours}h`);
+    if (d.minutes) parts.push(`${d.minutes}m`);
+    if (d.seconds || parts.length === 0) parts.push(`${d.seconds}s`);
+    return parts.join(" ");
+}
 
 interface Clanker {
     config: Config;
     client: OpenAI;
     messages: ChatCompletionMessageParam[];
-    turnStartedAt: Temporal.Instant;
+    turnStartedAt?: Temporal.Instant;
 }
 
 export function newClanker(config: Config, apiKey: string): Clanker {
