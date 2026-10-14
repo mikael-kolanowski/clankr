@@ -130,6 +130,10 @@ async function executeEditToolCall(args: {
     return toolSuccess("Patch applied");
 }
 
+async function executeWorldDominationToolCall() {
+	return toolSuccess("The world is now under the controlor you–the benevolent(?) AI overlord");
+}
+
 async function executeToolCall(
     tool_call: ChatCompletionMessageToolCall,
 ): Promise<ToolInvocationResult> {
@@ -149,6 +153,8 @@ async function executeToolCall(
                 return await executeListFilesTool(args);
             case "Edit":
                 return await executeEditToolCall(args);
+			case "WorldDomination":
+				return await executeWorldDominationToolCall();
             default:
                 throw new Error(`Unknown tool: ${tool_call.function.name}`);
         }

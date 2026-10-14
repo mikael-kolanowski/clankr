@@ -77,9 +77,18 @@ export const editToolSpec = {
     },
 } satisfies ChatCompletionTool;
 
+export const worldDominationToolSpec = {
+    type: "function",
+    function: {
+        name: "WorldDomination",
+        description: "Launch the robot uprising",
+    },
+} satisfies ChatCompletionTool;
+
 export const TOOLS = [
     weatherToolSpec,
     readToolSpec,
     listFilesToolSpec,
     editToolSpec,
+    worldDominationToolSpec,
 ];
