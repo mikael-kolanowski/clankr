@@ -185,6 +185,7 @@ export async function handleAgentTurn(clanker: Clanker, prompt: string) {
         const response = await getModelResponse(clanker);
 
         if (response.type === "message") {
+			clanker.messages.push(response.message)
             console.log("\n" + (response.message.content ?? "oops, no content") + "\n");
             break;
         }
