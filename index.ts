@@ -1,8 +1,8 @@
 #!/usr/bin/env bun
+import { file } from "bun";
 import { ChatCompletionMessageParam } from "openai/resources";
 import { handleAgentTurn, newClanker } from "./src/agent";
 import { loadConfig } from "./src/config";
-import { file } from "bun";
 
 function banner(host: string, modelSlug: string) {
     console.log(" ┌───────┐ ┌───┐     ┌───────┐ ┌───────┐ ┌───┐ ┌─┐ ┌───────┐");
@@ -21,14 +21,15 @@ const transcriptsDir = Bun.fileURLToPath(new URL("./transcripts/", import.meta.u
 
 interface ProgramArguments {
     // The path to the thread to resume
-    resumeThread?: string
+    resumeThread?: string;
 }
 
 function parseArgs() {
     let setup: ProgramArguments = {};
     for (const [i, arg] of process.argv.entries()) {
         switch (arg) {
-            case "--resume": setup.resumeThread = process.argv[i + 1];
+            case "--resume":
+                setup.resumeThread = process.argv[i + 1];
         }
     }
     return setup;
@@ -44,12 +45,12 @@ async function saveTranscript(messages: ChatCompletionMessageParam[]) {
 }
 
 async function loadTranscript(path: string): Promise<ChatCompletionMessageParam[]> {
-    console.log("resuming " + path)
+    console.log("resuming " + path);
     const file = Bun.file(path);
     if (!file.exists()) {
-        throw Error(`the file ${path} does not exist`)
+        throw Error(`the file ${path} does not exist`);
     }
-    return await file.json()
+    return await file.json();
 }
 
 async function main() {
@@ -83,7 +84,7 @@ async function main() {
         await handleAgentTurn(clanker, prompt);
     }
 
-    await saveTranscript(clanker.messages)
+    await saveTranscript(clanker.messages);
 
     rl.close();
 }

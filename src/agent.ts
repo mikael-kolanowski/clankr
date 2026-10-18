@@ -4,6 +4,7 @@ import { readdir } from "node:fs/promises";
 import OpenAI from "openai";
 import type { ChatCompletionMessageParam, ChatCompletionMessageToolCall } from "openai/resources";
 
+import { bold } from "./ansi";
 import type { Config } from "./config";
 import { TOOLS } from "./tool-defs";
 
@@ -63,11 +64,53 @@ function errorMessage(error: unknown): string {
     return error instanceof Error ? error.message : String(error);
 }
 
-function formatToolCall(tool_call: ChatCompletionMessageToolCall) {
-    if (tool_call.type !== "function") {
-        throw new Error("Unsupported tool type!");
+interface ToolArgs {
+    Weather: { location: string };
+    Read: { path: string };
+    ListFiles: { path?: string };
+    Edit: { path: string, delta: string };
+    WorldDomination: Record<string, never>;
+}
+
+type ToolName = keyof ToolArgs;
+
+function countPatchLines(delta: string): { added: number, removed: number } {
+    let added = 0;
+    let removed = 0;
+    for (const line of delta.split("\n")) {
+        if (line.startsWith("+") && !line.startsWith("+++")) added++;
+        else if (line.startsWith("-") && !line.startsWith("---")) removed++;
     }
-    return `${tool_call.function.name}(${tool_call.function.arguments})`;
+    return { added, removed };
+}
+
+const TOOL_FORMATTERS: {
+    [K in ToolName]: (args: ToolArgs[K]) => string;
+} = {
+    Weather: ({ location }) => `${bold("Weather")} in ${location}`,
+    Read: ({ path }) => `${bold("Read")} ${path}`,
+    ListFiles: ({ path }) => `${bold("ListFiles")} ${path ?? "."}`,
+    Edit: ({ path, delta }) => {
+        const { added, removed } = countPatchLines(delta);
+        return `${bold("Edit")} path, +${added}/-${removed}`;
+    },
+    WorldDomination: () => bold("Starting the robot uprising"),
+};
+
+function isToolName(name: string): name is ToolName {
+    return Object.hasOwn(TOOL_FORMATTERS, name);
+}
+
+function formatToolArgs<K extends ToolName>(name: K, args: ToolArgs[K]): string {
+    return TOOL_FORMATTERS[name](args);
+}
+
+function formatToolCall(name: string, args: unknown): string {
+    if (!isToolName(name)) {
+        return `${name}(${JSON.stringify(args)})`;
+    }
+
+    return formatToolArgs(name, args as ToolArgs[typeof name]);
 }
 
 async function executeWeatherTool(args: {
@@ -131,7 +174,7 @@ async function executeEditToolCall(args: {
 }
 
 async function executeWorldDominationToolCall() {
-	return toolSuccess("The world is now under the controlor you–the benevolent(?) AI overlord");
+    return toolSuccess("The world is now under the controlor you–the benevolent(?) AI overlord");
 }
 
 async function executeToolCall(
@@ -140,11 +183,14 @@ async function executeToolCall(
     if (tool_call.type !== "function") {
         throw new Error("Unsupported tool type!");
     }
-    const args = JSON.parse(tool_call.function.arguments);
-    console.log(`   ${formatToolCall(tool_call)}`);
+
+    const { name, arguments: rawArgs } = tool_call.function;
 
     try {
-        switch (tool_call.function.name) {
+        const args = JSON.parse(rawArgs);
+        console.log(`${formatToolCall(name, args)}`);
+
+        switch (name) {
             case "Weather":
                 return await executeWeatherTool(args);
             case "Read":
@@ -153,10 +199,10 @@ async function executeToolCall(
                 return await executeListFilesTool(args);
             case "Edit":
                 return await executeEditToolCall(args);
-			case "WorldDomination":
-				return await executeWorldDominationToolCall();
+            case "WorldDomination":
+                return await executeWorldDominationToolCall();
             default:
-                throw new Error(`Unknown tool: ${tool_call.function.name}`);
+                throw new Error(`Unknown tool: ${name}`);
         }
     } catch (error) {
         return toolFailure(errorMessage(error));
@@ -191,7 +237,7 @@ export async function handleAgentTurn(clanker: Clanker, prompt: string) {
         const response = await getModelResponse(clanker);
 
         if (response.type === "message") {
-			clanker.messages.push(response.message)
+            clanker.messages.push(response.message);
             console.log("\n" + (response.message.content ?? "oops, no content") + "\n");
             break;
         }
