@@ -35,7 +35,7 @@ interface Clanker {
     turnStartedAt?: Temporal.Instant;
 }
 
-export function newClanker(config: Config, apiKey: string): Clanker {
+export function newClanker(config: Config, apiKey: string, initialMessages?: ChatCompletionMessageParam[]): Clanker {
     const client = new OpenAI({
         apiKey: apiKey,
         baseURL: config.baseURL,
@@ -44,7 +44,7 @@ export function newClanker(config: Config, apiKey: string): Clanker {
     return {
         config,
         client: client,
-        messages: [],
+        messages: initialMessages ?? [],
     };
 }
 
