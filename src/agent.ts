@@ -92,7 +92,7 @@ const TOOL_FORMATTERS: {
     ListFiles: ({ path }) => `${bold("ListFiles")} ${path ?? "."}`,
     Edit: ({ path, delta }) => {
         const { added, removed } = countPatchLines(delta);
-        return `${bold("Edit")} path, +${added}/-${removed}`;
+        return `${bold("Edit")} {path}, +${added}/-${removed}`;
     },
     WorldDomination: () => bold("Starting the robot uprising"),
 };
@@ -174,7 +174,7 @@ async function executeEditToolCall(args: {
 }
 
 async function executeWorldDominationToolCall() {
-    return toolSuccess("The world is now under the controlor you–the benevolent(?) AI overlord");
+    return toolSuccess("The world is now under the control of you–the benevolent(?) AI overlord");
 }
 
 async function executeToolCall(
